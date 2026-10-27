@@ -25,7 +25,7 @@ function lv(){return{
   gMin:Math.max(.85,.95-level*.04), gMax:Math.max(1.05,1.5-level*.05),
   spd:Math.min(2.6,1.5+level*.1), pCol:Math.min(.55,.1+level*.04),
   pGap:Math.min(.5,.15+level*.04), pDir:Math.min(.35,.04+level*.03),
-  bEvery:Math.max(1,6-(level>>1)), pGem:Math.min(.2,.09+level*.01), pEv:level<1?0:Math.min(.45,.12+level*.04), bVar:level>=2, bMin:level>=5?.055:.062, bMax:level>=5?.11:.095};}
+  bEvery:Math.max(1,8-(level>>1)), pGem:Math.min(.2,.09+level*.01), pEv:level<1?0:Math.min(.45,.12+level*.04), bVar:level>=2, bMin:level>=5?.055:.062, bMax:level>=5?.11:.095};}
 
 function makeRing(){const L=lv(),gap=rnd(L.gMin,L.gMax);
   const R={r:slotR(NSLOT),tr:slotR(NSLOT),col:(Math.random()*L.ncol)|0,ang:rnd(0,TAU),gap,tgap:gap,
@@ -40,8 +40,8 @@ function reset(){score=0;combo=0;lives=3;level=0;passed=0;nextLife=500;beatPos=0
   ball={col:(Math.random()*3)|0,k:.075,tk:.075,pop:0};rings[0].col=ball.col;}
 
 // ---------- звук (процедурный, 0 КБ ресурсов) ----------
-let ac=null,muted=false,noise=null;
-function initAudio(){try{ac=new(window.AudioContext||window.webkitAudioContext)();const n=ac.sampleRate*.1|0;
+let ac=null,mg=null,muted=false,noise=null;
+function initAudio(){try{ac=new(window.AudioContext||window.webkitAudioContext)();mg=ac.createGain();mg.connect(ac.destination);const n=ac.sampleRate*.1|0;
   noise=ac.createBuffer(1,n,ac.sampleRate);const d=noise.getChannelData(0);for(let i=0;i<n;i++)d[i]=Math.random()*2-1}catch(e){ac=null}}
 function tone(f0,f1,dur,type,vol,dl){if(!ac||muted)return;const s=ac.currentTime+(dl||0),o=ac.createOscillator(),v=ac.createGain();
   o.type=type;o.frequency.setValueAtTime(f0,s);o.frequency.exponentialRampToValueAtTime(Math.max(20,f1),s+dur);
@@ -50,6 +50,27 @@ function hat(){if(!ac||muted)return;const s=ac.createBufferSource(),f=ac.createB
   s.buffer=noise;f.type='highpass';f.frequency.value=7000;v.gain.value=.06;s.connect(f).connect(v).connect(ac.destination);s.start()}
 const buzz=n=>{try{navigator.vibrate&&navigator.vibrate(n)}catch(e){}};
 
+// ---------- музыка: трек Arcade Rush + карта битов ----------
+// Темп трека плавает (≈127→133 BPM), поэтому биты взяты из анализа реальных ударов, а не из «ровного BPM».
+const SONG={url:'audio/arcade-rush.mp3',lead:15.78,loopStart:17.22,loopEnd:177.491,
+  beats:[15.78,16.253,16.725,17.197,17.669,18.14,18.612,19.083,19.555,20.026,20.497,20.968,21.439,21.909,22.38,22.85,23.32,23.79,24.26,24.73,25.2,25.67,26.139,26.609,27.078,27.547,28.016,28.485,28.954,29.423,29.891,30.36,30.828,31.296,31.764,32.232,32.7,33.168,33.636,34.103,34.571,35.038,35.505,35.972,36.439,36.906,37.373,37.84,38.306,38.773,39.239,39.705,40.172,40.638,41.104,41.57,42.035,42.501,42.967,43.432,43.898,44.363,44.828,45.293,45.758,46.223,46.688,47.153,47.618,48.082,48.547,49.011,49.476,49.94,50.404,50.868,51.332,51.796,52.26,52.724,53.187,53.651,54.114,54.578,55.041,55.504,55.968,56.431,56.894,57.357,57.82,58.282,58.745,59.208,59.67,60.133,60.595,61.058,61.52,61.982,62.444,62.907,63.369,63.831,64.292,64.754,65.216,65.678,66.139,66.601,67.062,67.524,67.985,68.446,68.908,69.369,69.83,70.291,70.752,71.213,71.674,72.135,72.595,73.056,73.517,73.977,74.438,74.898,75.359,75.819,76.279,76.739,77.2,77.66,78.12,78.58,79.04,79.5,79.96,80.419,80.879,81.339,81.799,82.258,82.718,83.177,83.637,84.096,84.556,85.015,85.474,85.933,86.393,86.852,87.311,87.77,88.229,88.688,89.147,89.606,90.064,90.523,90.982,91.441,91.899,92.358,92.816,93.275,93.734,94.192,94.65,95.109,95.567,96.025,96.484,96.942,97.4,97.858,98.316,98.774,99.232,99.69,100.148,100.606,101.064,101.522,101.979,102.437,102.895,103.353,103.81,104.268,104.725,105.183,105.641,106.098,106.555,107.013,107.47,107.927,108.385,108.842,109.299,109.756,110.214,110.671,111.128,111.585,112.042,112.499,112.956,113.413,113.87,114.327,114.783,115.24,115.697,116.154,116.61,117.067,117.524,117.98,118.437,118.894,119.35,119.807,120.263,120.719,121.176,121.632,122.088,122.545,123.001,123.457,123.914,124.37,124.826,125.282,125.738,126.194,126.65,127.106,127.562,128.018,128.474,128.93,129.386,129.841,130.297,130.753,131.209,131.664,132.12,132.576,133.031,133.487,133.942,134.398,134.853,135.309,135.764,136.219,136.675,137.13,137.585,138.04,138.496,138.951,139.406,139.861,140.316,140.771,141.226,141.681,142.136,142.591,143.046,143.5,143.955,144.41,144.865,145.319,145.774,146.229,146.683,147.138,147.592,148.047,148.501,148.956,149.41,149.864,150.318,150.773,151.227,151.681,152.135,152.589,153.043,153.497,153.951,154.405,154.859,155.313,155.767,156.22,156.674,157.128,157.581,158.035,158.488,158.942,159.395,159.849,160.302,160.755,161.209,161.662,162.115,162.568,163.021,163.474,163.927,164.38,164.833,165.286,165.739,166.191,166.644,167.097,167.549,168.002,168.454,168.907,169.359,169.811,170.264,170.716,171.168,171.62,172.072,172.524,172.976,173.428,173.88,174.331,174.783,175.235,175.686,176.138,176.589,177.04]};
+const AUDIO_OFFSET=0; // подстройка синхронизации, сек (+ если картинка опережает звук)
+const music={buf:null,on:false,src:null,sg:null,t0:0,bi:0,lastPos:0,bpm:130,prev:null,failed:false};
+(function loadMusic(){try{fetch(SONG.url).then(r=>{if(!r.ok)throw 0;return r.arrayBuffer()})
+  .then(b=>{const OC=window.OfflineAudioContext||window.webkitOfflineAudioContext;return new OC(2,1,44100).decodeAudioData(b)})
+  .then(buf=>{music.buf=buf;if(state==='play'&&ac&&!music.on)startMusic()}).catch(()=>{music.failed=true})}catch(e){music.failed=true}})();
+function startMusic(){stopMusic(true);if(!ac||!mg||!music.buf)return;
+  const s=ac.createBufferSource(),gn=ac.createGain();s.buffer=music.buf;s.loop=true;s.loopStart=SONG.loopStart;s.loopEnd=SONG.loopEnd;
+  s.connect(gn);gn.connect(mg);const now=ac.currentTime+.08;s.start(now,SONG.lead);
+  music.src=s;music.sg=gn;music.t0=now;music.on=true;music.bi=0;music.lastPos=SONG.lead;music.prev=null}
+function stopMusic(now){if(!music.src)return;try{if(now)music.src.stop();else{music.sg.gain.setTargetAtTime(0,ac.currentTime,.08);music.src.stop(ac.currentTime+.5)}}catch(e){}music.src=null;music.on=false}
+function songPos(){const p=SONG.lead+(ac.currentTime-music.t0);if(p<SONG.loopEnd)return p;return SONG.loopStart+((p-SONG.loopEnd)%(SONG.loopEnd-SONG.loopStart))}
+function lowerBound(p){let a=0,b=SONG.beats.length;while(a<b){const m=(a+b)>>1;if(SONG.beats[m]<p)a=m+1;else b=m}return a}
+function musicBeats(){const lat=(ac.outputLatency||ac.baseLatency||0)+AUDIO_OFFSET,p=songPos()-lat;
+  if(p<music.lastPos-1)music.bi=lowerBound(p);music.lastPos=p;
+  while(music.bi<SONG.beats.length&&SONG.beats[music.bi]<=p){const bt=SONG.beats[music.bi++];
+    if(music.prev!==null){const iv=bt-music.prev;if(iv>.2&&iv<1)music.bpm=60/iv}music.prev=bt;
+    if(p-bt<.5)onBeat()}}
 // ---------- частицы ----------
 const NP=120,P=[];let pi=0;for(let i=0;i<NP;i++)P.push({x:0,y:0,vx:0,vy:0,l:0,c:'#fff',s:2});
 function burst(x,y,c,n,sp){for(let i=0;i<n;i++){const p=P[pi=(pi+1)%NP],a=rnd(0,TAU),v=rnd(.3,1)*sp;
@@ -65,7 +86,7 @@ const NS=80,S=[];let si=0;for(let i=0;i<NS;i++)S.push({x:0,y:0,vx:0,vy:0,l:0,s:2
 function sparkle(n,c){for(let i=0;i<n;i++){const p=S[si=(si+1)%NS],a=rnd(0,TAU),d=rnd(.15,1.15)*U;
   p.x=cx+Math.cos(a)*d;p.y=cy+Math.sin(a)*d;p.vx=rnd(-1,1)*U*.05;p.vy=rnd(-1,.2)*U*.08;p.l=1;p.s=rnd(1,3);p.c=Math.random()<.5?'#fff':c;p.ph=rnd(0,TAU)}}
 // ---------- ритм ----------
-function onBeat(){const L=lv();beatCount++;pulse=1;tone(150,40,.18,'sine',.45);
+function onBeat(){const L=lv();beatCount++;pulse=1;if(!music.on)tone(150,40,.18,'sine',.45);
   if(beatCount%L.bEvery===0){let c;do{c=(Math.random()*L.ncol)|0}while(c===ball.col);ball.col=c;ball.pop=1;if(Math.random()<.6&&rings[0].col!==c){rings[0].col=c;rings[0].pulse=1}}
   if(L.bVar&&beatCount%4===0)ball.tk=rnd(L.bMin,L.bMax);
   rings.forEach((r,i)=>{
@@ -133,12 +154,12 @@ function onPass(v){matchT=-9;mood=1;combo++;passed++;score+=(v.perfect?20:10)+Ma
   const n=Math.min(combo,12);tone(520+n*35,900+n*40,.12,'triangle',.25);buzz(15);}
 function onFail(v,d){mood=0;combo=0;lives--;shake=1;popup(v.why,'#ff3d6e');
   burst(cx,cy+d,'#ff3d6e',14,U);tone(160,55,.3,'sawtooth',.22);buzz(60);
-  if(lives<=0){state='over';overT=t;if(score>best){best=score;try{localStorage.setItem('ringdrop_best',best)}catch(e){}}}}
+  if(lives<=0){state='over';overT=t;stopMusic();if(score>best){best=score;try{localStorage.setItem('ringdrop_best',best)}catch(e){}}}}
 
 function onTap(x,y){
   if(!ac)initAudio();else if(ac.state==='suspended')ac.resume();
-  if(x>W-56&&y<SAT+56){muted=!muted;return}
-  if(state==='menu'||(state==='over'&&t-overT>.6)){reset();state='play'}
+  if(x>W-56&&y<SAT+56){muted=!muted;if(mg)mg.gain.value=muted?0:1;return}
+  if(state==='menu'||(state==='over'&&t-overT>.6)){reset();state='play';startMusic()}
   else if(state==='play'){if(!smash(x,y))tap()}}
 addEventListener('pointerdown',e=>{e.preventDefault();try{onTap(e.clientX,e.clientY)}catch(er){fail('tap',er)}},{passive:false});
 addEventListener('keydown',e=>{if(e.code==='Space'||e.code==='Enter')onTap(0,999)});
@@ -159,8 +180,9 @@ function update(dt){t+=dt;pulse=Math.max(0,pulse-dt*4);shake=Math.max(0,shake-dt
   if(state==='play'){
     if(rings[0].col===ball.col)matchT=t;
     if(!anim){const q=rings[0];wCol=q.col!==ball.col?wCol+dt:0;wGap=q.gap/2<Math.asin(Math.min(1,ball.k*U/q.tr))?wGap+dt:0}
-    beatPos+=dt*lv().bpm/60;const h=Math.floor(beatPos*2);
-    if(h>lastHalf){lastHalf=h;if(h%2===0)onBeat();else hat()}
+    if(music.on)musicBeats();
+    else{beatPos+=dt*lv().bpm/60;const h=Math.floor(beatPos*2);
+      if(h>lastHalf){lastHalf=h;if(h%2===0)onBeat();else hat()}}
     if(anim){anim.t+=dt/anim.dur;const p=Math.min(1,anim.t);
       anim.d=anim.v.ok?anim.target*p*p:anim.target*Math.sin(p*Math.PI);
       if(p>=1){const a=anim;anim=null;a.v.ok?onPass(a.v):onFail(a.v,a.d)}}}}
@@ -288,7 +310,7 @@ function draw(){
   text(String(score),cx,hudY(),fs,'#fff');
   if(state==='play'){
     for(let i=0;i<3;i++){g.globalAlpha=i<lives?1:.2;g.fillStyle='#ff3d6e';g.beginPath();g.arc(cx+(i-1)*fs*.45,hudY()+fs*.8,fs*.12,0,TAU);g.fill()}g.globalAlpha=1;
-    text('уровень '+(level+1)+'   '+lv().bpm+' bpm',cx,hudY()+fs*1.35,fs*.3,'#fff',.5);
+    text('уровень '+(level+1)+'   '+Math.round(music.on?music.bpm:lv().bpm)+' bpm',cx,hudY()+fs*1.35,fs*.3,'#fff',.5);
     if(combo>1)text('x'+combo,cx,cy+U*1.2,fs*.6,'#fff',.7)}
   text('♪',W-28,SAT+28,26,'#fff',muted?.25:.8);
   if(mile){const e=Math.min(1,mile.t*5);text(mile.s,cx,cy-U*1.05,fs*(1+.6*(1-Math.pow(1-e,3))),'#fff',1-mile.t*mile.t)}
